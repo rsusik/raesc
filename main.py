@@ -701,7 +701,7 @@ def train(
         hidden_dim = int((x.shape[1]*features)/hidden_dim_delimiter)
 
         model = model(hidden_dim, x.shape[1], features)
-        if model == None:
+        if model is None:
             print(f'ERROR: skipping as model is None')
             continue
 
@@ -762,7 +762,7 @@ def plot_results(
     }
     color_mapping = {key: itertools.cycle(color_mapping[key]) for key in color_mapping.keys()}
 
-    if line_styles_mapping == None:
+    if line_styles_mapping is None:
         line_styles_mapping = {
             'RAE': ['-'],#, '--', '-.', ':'],
             'RAESC': ['-'],
@@ -774,7 +774,7 @@ def plot_results(
     plt.subplots_adjust(left=0.14, bottom=0.18, right=0.98, top=0.98)
     plt.gca().set_xlabel('epochs') # , fontsize=4
     plt.gca().set_ylabel(metric)
-    if xticks != None:
+    if xticks is not None:
       plt.xticks(xticks, fontsize=9)
     plt.yticks(fontsize=9)
     for d in data:
@@ -795,6 +795,6 @@ def plot_results(
         np.array(handles)[labels_order], np.array(labels)[labels_order], 
         prop = font_manager.FontProperties(size = 12)
     )
-    if filename != None:
+    if filename is not None:
         plt.savefig(f'{output_path}/{filename}')
         plt.savefig(f'{output_path}/{filename}.png')
