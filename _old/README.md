@@ -33,9 +33,5 @@ The all dataset files are "pickled" and placed in folder `datasets`.
 
 ## Running
 
-* The training may be executed by running `run.py`, example:
-    ```shell
-    python run.py rae,raes,raesc 1,2,4,8 1,2,4
-    ```
-* All charts used in the research can be generated from the jupyter notebook `main.ipynb`.
-* The source codes and other utilities are in `main.py` file.
+* The training and evaluation may be executed from jupyter notebook `main.ipynb`.
+* The source code of models and other utilities is in `main.py` file.

@@ -3,8 +3,6 @@
 # Source code of research (preprint):
 # https://arxiv.org/pdf/2009.07349.pdf
 #
-# Conference paper/article is ongoing.
-#
 # Author
 # Robert Susik (rsusik@kis.p.lodz.pl)
 # Institute of Applied Computer Science,
@@ -36,8 +34,6 @@ import six
 tf.get_logger().setLevel("WARNING")
 
 # Extending Tensorflow ModelCheckpoint
-# + Added self.filepaths, that contains all the checkpoint paths.
-# (2020-09)
 # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/callbacks.py
 #@keras_export('keras.callbacks.ModelCheckpoint')
 class ModelCheckpoint(tf.keras.callbacks.Callback):
@@ -450,6 +446,18 @@ class Models():
             name='RAE'
         )
 
+    def not_autoencoder(hidden_dim, seq_len, n_features):
+        in1 = tf.keras.layers.Input(shape=(None, n_features))
+        gru1 = tf.keras.layers.GRU(hidden_dim, name='latent_layer', return_sequences=True)(in1) # RETURN SEQUENCE
+        gru2 = tf.keras.layers.GRU(hidden_dim, return_sequences=True)(gru1)
+        tdd1 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(n_features))(gru2)
+
+        return tf.keras.Model(
+            inputs=[in1], 
+            outputs=[tdd1],
+            name='not_autoencoder'
+        )
+
     def RAES(hidden_dim, seq_len, n_features):
         if int(hidden_dim/seq_len) == 0 or hidden_dim % seq_len != 0:
             return None
@@ -540,7 +548,7 @@ def train_model(
         callbacks=callbacks
     )
 
-    if checkpointCallback is not None:
+    if checkpointCallback != None:
         checkpoint_filepaths = checkpointCallback.filepaths
     else:
         checkpoint_filepaths = []
@@ -659,8 +667,7 @@ def train(
     n_dr_rate = [0.2],
     n_features = [1], #[1, 2, 4, 8]
     n_samples = [5000],
-    output_path = '.',
-    output_filename = None
+    output_path = '.'
 ):
     results_path = PATHS.get_results_path(output_path)
     results = []
@@ -701,20 +708,16 @@ def train(
         result_path = PATHS.get_result_path(output_path, model.name, hidden_dim, epochs, batch_size, learning_rate, dr_rate, samples, features)
 
         loss = 'mse'
-        try:
-          training_res = train_model( 
-              model, 
-              x=x, 
-              x_val=x_val, 
-              epochs=epochs, 
-              batch_size=batch_size, 
-              loss=loss,
-              learning_rate=learning_rate,
-              log_dir=result_path
-          )
-        except Exception as ex:
-          print(f'WARNING: Exception occured, skipping\n{ex}')
-          continue
+        training_res = train_model( 
+            model, 
+            x=x, 
+            x_val=x_val, 
+            epochs=epochs, 
+            batch_size=batch_size, 
+            loss=loss,
+            learning_rate=learning_rate,
+            log_dir=result_path
+        )
         
         results.append([
             model.name,
@@ -729,55 +732,21 @@ def train(
             samples,
             training_res['history'].history,
             training_res['timings'],
-            training_res['checkpoints'],
-            model.count_params()
+            training_res['checkpoints']
         ])
-
-        if output_filename is not None:
-          to_save = []
-
-          for train_result in tqdm(results):
-              to_save.append({
-                  'training': train_result,
-                  'evalution': []
-              })
-
-          with open(f'{output_filename}', 'wb') as f:
-              pickle.dump(to_save, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     return results
 
 
 def plot_results(
-  data,
-  x=lambda res: np.arange(res[TRAINING_DETAILS.EPOCHS]), # lambda fun
-  y=None, # lambda fun
-  metric=['loss'], 
+  data, 
+  metric='loss', 
   filename=None, 
   label_fmt='{NAME}', 
   output_path='.', 
   line_styles_mapping=None,
-  color_mapping=None,
-  xticks=None,
-  yticks=None,
-  xlim=None,
-  ylim=None,
-  xlabel='epochs',
-  ylabel=None,
-  figsize=(5, 3)
+  xticks=[0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 ):
-    if y is None:
-      if metric is not None:
-        if np.atleast_1d(metric).shape[0] == 1:
-          y=lambda res: res[TRAINING_DETAILS.HISTORY][np.atleast_1d(metric)[0]]
-      else:
-        y=lambda res: res[TRAINING_DETAILS.HISTORY]['loss']
-    else:
-      if metric is not None:
-        print(f'Warning: ignoring "metric" argument')
-    if ylabel is None:
-      if metric is not None:
-        ylabel = metric
     mpl.use('pgf')
     mpl.rcParams["font.size"] = 14
     name_mapping = {
@@ -786,12 +755,11 @@ def plot_results(
         'RAES': 'RAES'
     }
 
-    if color_mapping is None:
-      color_mapping = {
-          'RAE': ['red', 'firebrick', 'orange', 'salmon', 'gold', 'olive', 'y'],
-          'RAESC': ['green'],
-          'RAES': ['blue']
-      }
+    color_mapping = {
+        'RAE': ['red', 'firebrick', 'orange', 'salmon', 'gold', 'olive', 'y'],
+        'RAESC': ['green'],
+        'RAES': ['blue']
+    }
     color_mapping = {key: itertools.cycle(color_mapping[key]) for key in color_mapping.keys()}
 
     if line_styles_mapping is None:
@@ -802,48 +770,24 @@ def plot_results(
         }
     line_styles_mapping = {key: itertools.cycle(line_styles_mapping[key]) for key in line_styles_mapping.keys()}
     
-    plt.figure(figsize=figsize)
+    plt.figure(figsize=(5, 3))
     plt.subplots_adjust(left=0.14, bottom=0.18, right=0.98, top=0.98)
-    if xlabel is not None:
-      plt.gca().set_xlabel(xlabel) # , fontsize=4
-    if ylabel is not None:
-      plt.gca().set_ylabel(ylabel)
-    if xticks is None:
-      xticks=[0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    plt.gca().set_xlabel('epochs') # , fontsize=4
+    plt.gca().set_ylabel(metric)
     if xticks is not None:
       plt.xticks(xticks, fontsize=9)
-    if yticks is not None:
-      plt.yticks(yticks, fontsize=9)
     plt.yticks(fontsize=9)
-    if xlim is not None:
-      plt.xlim(xlim)
-    if ylim is not None:
-      plt.ylim(ylim)
-
-    plot = lambda x, y, label, d: plt.plot(
-      x(d), 
-      y(d), 
-      label=label, 
-      c=next(color_mapping[d[TRAINING_DETAILS.NAME]]), 
-      linestyle=next(line_styles_mapping[d[TRAINING_DETAILS.NAME]])
-    )
-
     for d in data:
-      for m in np.atleast_1d(metric):
         label = label_fmt\
-          .replace('{NAME}', name_mapping[d[TRAINING_DETAILS.NAME]])\
-          .replace('{HD}', str(int(
-              100*d[TRAINING_DETAILS.HIDDEN_DIM] / (d[TRAINING_DETAILS.SEQ_LEN] * d[TRAINING_DETAILS.FEATURES])
-          )).rjust(3, ' ')+'\%')\
-          .replace('{SQLEN}', str(d[TRAINING_DETAILS.SEQ_LEN]))\
-          .replace('{FEAT}', str(d[TRAINING_DETAILS.FEATURES]))\
-          .replace('{SAMPL}', str(d[TRAINING_DETAILS.SAMPLES]))\
-          .replace('{BATCH}', str(d[TRAINING_DETAILS.BATCH_SIZE]))\
-          .replace('{METRIC}', m)
-        if y is None:
-          plot(x, lambda res: res[TRAINING_DETAILS.HISTORY][m], label, d)
-        else:
-          plot(x, y, label, d)
+            .replace('{NAME}', name_mapping[d['training'][TRAINING_DETAILS.NAME]])\
+            .replace('{HD}', str(int(
+                100*d['training'][TRAINING_DETAILS.HIDDEN_DIM] / (d['training'][TRAINING_DETAILS.SEQ_LEN] * d['training'][TRAINING_DETAILS.FEATURES])
+            )).rjust(3, ' ')+'\%')\
+            .replace('{SQLEN}', str(d['training'][TRAINING_DETAILS.SEQ_LEN]))\
+            .replace('{FEAT}', str(d['training'][TRAINING_DETAILS.FEATURES]))\
+            .replace('{SAMPL}', str(d['training'][TRAINING_DETAILS.SAMPLES]))\
+            .replace('{BATCH}', str(d['training'][TRAINING_DETAILS.BATCH_SIZE]))
+        plt.plot(d['training'][TRAINING_DETAILS.HISTORY][metric], label=label, c=next(color_mapping[d['training'][TRAINING_DETAILS.NAME]]), linestyle=next(line_styles_mapping[d['training'][TRAINING_DETAILS.NAME]]))
         
     handles, labels = plt.gca().get_legend_handles_labels()
     labels_order = np.argsort(np.array(labels))
