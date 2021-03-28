@@ -4,6 +4,8 @@
 
 This source code was written for research purpose (https://arxiv.org/abs/2009.07349) and has a minimal error checking. The code may be not very readable and comments may not be adequate. There is no warranty, your use of this code is at your own risk.
 
+> The paper has been accepted to ICCS 2021 conference (https://www.iccs-meeting.org/iccs2021/). The citation will be updated once the proceedings appear.
+
 Cite (paper preprint):
 
 ```
